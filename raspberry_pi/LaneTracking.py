@@ -41,7 +41,7 @@ def birdeye(img, display=False):
     if display:
         cv2.imshow('input',img)
         cv2.imshow('warped',warped)
-        
+
     return warped, M, Minv
 
 
@@ -145,7 +145,7 @@ def Lane_tracking(image , display = False):
     l_y2_a = 0
     l_x1f = 0
     l_x2f = 0
-    
+
     global l_x1,l_x2,l_y1,l_y2,l_x1f,l_x2f
 
     # proceed only if there ae lines found
@@ -180,7 +180,7 @@ def Lane_tracking(image , display = False):
        # Find the intersection of dominant lane with an imaginary horizontal line
        # in the middle of the image and at the bottom of the image.
        if l_avgx1 != l_avgx2:
-           
+
            slope_left = ((l_avgy1 - l_avgy2)*(1.0))/(l_avgx1 - l_avgx2)
            y = h
            l_x1f = (y - l_avgy1)/slope_left + l_avgx1
@@ -257,11 +257,11 @@ def Lane_tracking(image , display = False):
 
     #Computing the center of the lane
     if r_x2f and l_x2f:
-        
+
         up_center_point = (int((r_x2f + l_x2f)/2) , h/2)
         down_center_point = (int((r_x1f + l_x1f)/2) , h)
-        center_center_point = ((up_center_point[0] + down_center_point[0])/2 , (up_center_point[1] + down_center_point[1])/2) 
-        
+        center_center_point = ((up_center_point[0] + down_center_point[0])/2 , (up_center_point[1] + down_center_point[1])/2)
+
         print up_center_point,'    ',down_center_point
 
         #Computing the error
@@ -269,10 +269,21 @@ def Lane_tracking(image , display = False):
         img_center = ((h/2),(w/2))
         cv2.line(roi_image,(img_center[1],h/2),(img_center[1],h),(255,255,255),2)
 
+        slope_center = ((up_center_point[1] - down_center_point[1])*(1.0))/(up_center_point[0] - down_center_point[0])
 
-        error = up_center_point[0] - img_center[0]    
+        x_intersection_point = w/2
+        y_intersection_point = (x_intersection_point - down_center_point[0])*slope_center + down_center_point[1]
+
+        length_base = y_intersection_point - h/2
+        length_height = r_x2f - w/2
+
+        angle = tan(length_height/length_base)
+
+        angle = degrees(angle)
+
+        error = up_center_point[0] - img_center[0]
         cv2.line(roi_image,(up_center_point),(down_center_point),(255,255,255),2)
-    
+
 ##
 ##    print time.time()-start
 ##
