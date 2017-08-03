@@ -5,15 +5,18 @@ import numpy as np
 import math
 from image_processing import grayscale,canny,gaussian_blur,sobel,\
      region_of_interest, Counters_lane, draw_lines,\
-     hough_lines_p,threshold, Counters_signal, Counters_Pheeno,seg_intersect
+     hough_lines_p,threshold, Counters_signal, Counters_Pheeno,\
+     seg_intersect, movingAverage
 from capture_image import image_capture
 import time
 
-prev_error=0
+error = 0
+prev_error = 0
 
 lane_bound_upper = np.array([180, 255, 255], dtype="uint8")
 lane_bound_lower = np.array([0, 0, 170], dtype="uint8")
 
+center_center_point = 0
 
 def birdeye(img, display=False):
     """
@@ -40,7 +43,7 @@ def birdeye(img, display=False):
 
     if display:
         cv2.imshow('input',img)
-        cv2.imshow('warped',warped)
+        #cv2.imshow('warped',warped)
 
     return warped, M, Minv
 
@@ -71,7 +74,7 @@ def Lane_tracking(image , display = False):
     gaussian = gaussian_blur(gray , 5)
 
     #thresholding
-    #thresh = threshold(gaussian)
+    thresh = threshold(gaussian)
 
 
     # Sperating the region of interest
@@ -84,8 +87,7 @@ def Lane_tracking(image , display = False):
     top_right = [w,2*h/3]
     vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
     vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
-    roi_image = region_of_interest(gaussian, vertices)
-
+    roi_image = region_of_interest(thresh, vertices)
 
     # Canny canny_edges
 
@@ -97,7 +99,12 @@ def Lane_tracking(image , display = False):
     #Seperating the left and right line of the lane using histogram
 
     histogram = np.sum(roi_image[h//2:h,:],axis = 0)
+    non_zero_elements = np.nonzero(histogram)
+    ch = np.sum(non_zero_elements)
+    l = np.size(non_zero_elements)
+    #print'nonzero elements ',ch//l
     midpoint = len(histogram) // 2
+    #midpoint = ch // l
     leftx_base = np.argmax(histogram[:midpoint])
     rightx_base = np.argmax(histogram[midpoint:]) + midpoint
 
@@ -119,21 +126,21 @@ def Lane_tracking(image , display = False):
 
     # Define an imaginary horizontal line in the center of the screen
     # and at the bottom of the image, to extrapolate determined segment
-    up_line_point1 = np.array( [0, int(h - (h/2))] )
-    up_line_point2 = np.array( [int(w), int(h - (h/2))] )
+    up_line_point1 = np.array( [0, int((2*h/3))] )
+    up_line_point2 = np.array( [int(w), int((2*h/3))] )
     down_line_point1 = np.array( [0, int(h)] )
     down_line_point2 = np.array( [int(w), int(h)] )
 
     # Drawing the half line on the image
-    cv2.line(roi_image,(up_line_point1[0],up_line_point1[1]),(up_line_point2[0],up_line_point2[1]),(255,255,255),2)
+    cv2.line(image,(up_line_point1[0],up_line_point1[1]),(up_line_point2[0],up_line_point2[1]),(255,255,255),2)
 
     # Drawing the bottom line on the image
-    cv2.line(roi_image,(down_line_point1[0],down_line_point1[1]),(down_line_point2[0],down_line_point2[1]),(255,255,255),2)
+    #cv2.line(roi_image,(down_line_point1[0],down_line_point1[1]),(down_line_point2[0],down_line_point2[1]),(255,255,255),2)
 
     ### Fing the lane lines in the left lane image
     # Standard hough transform to get the rho and the theta of the line
 
-    left_lines = cv2.HoughLines(left,2,np.pi/180,65)
+    left_lines = cv2.HoughLines(left,2,np.pi/180,51)
 
     l_x1 = 0
     l_x2 = 0
@@ -143,10 +150,14 @@ def Lane_tracking(image , display = False):
     l_x2_a = 0
     l_y1_a = 0
     l_y2_a = 0
+    l_avgx1 = 0
+    l_avgy1 = 0
+    l_avgx2 = 0
+    l_avgy2 = 0
     l_x1f = 0
     l_x2f = 0
 
-    global l_x1,l_x2,l_y1,l_y2,l_x1f,l_x2f
+    global l_x1,l_x2,l_y1,l_y2,l_x1f,l_x2f,l_avgx1,l_avgy1,l_avgx2,l_avgy2
 
     # proceed only if there ae lines found
     if left_lines != None:
@@ -184,18 +195,20 @@ def Lane_tracking(image , display = False):
            slope_left = ((l_avgy1 - l_avgy2)*(1.0))/(l_avgx1 - l_avgx2)
            y = h
            l_x1f = (y - l_avgy1)/slope_left + l_avgx1
-           y = h/2
+           y = 2*h/3
            l_x2f = (y - l_avgy1)/slope_left + l_avgx1
 
-           cv2.line(roi_image,(int(l_x1f),h),(int(l_x2f),h/2),(255,255,255),2)
+           cv2.line(image,(int(l_x1f),h),(int(l_x2f),2*h/3),(255,255,255),2)
 
 
-           print 'Left Line', left_line,' Slope ',slope_left
+        #   print 'Left Line', left_line,' Slope ',slope_left
 
 
+##    lines = cv2.HoughLinesP(right,2,np.pi/180, 61, np.array([]), 21,21)
+##    for lines
     ### Fing the lane lines in the left lane image
     # Standard hough transform to get the rho and the theta of the line
-    right_lines = cv2.HoughLines(right,2,np.pi/180,65)
+    right_lines = cv2.HoughLines(right,2,np.pi/180,51)
 
     r_x1 = 0
     r_x2 = 0
@@ -205,10 +218,14 @@ def Lane_tracking(image , display = False):
     r_x2_a = 0
     r_y1_a = 0
     r_y2_a = 0
+    l_avgx1 = 0
+    l_avgy1 = 0
+    l_avgx2 = 0
+    l_avgy2 = 0
     r_x1f = 0
     r_x2f = 0
 
-    global r_x1,r_x2,r_y1,r_y2,r_x1f,r_x2f
+    global r_x1,r_x2,r_y1,r_y2,r_x1f,r_x2f,r_avgx1,r_avgy1,r_avgx2,r_avgy2
 
     # proceed only if there ae lines found
     if right_lines != None:
@@ -238,69 +255,87 @@ def Lane_tracking(image , display = False):
        r_avgy2 = r_y2_a/len(right_lines)
 
        right_line = (r_avgx1, r_avgy1, r_avgx2, r_avgy2)
+       #cv2.line(image,(int(r_x1),r_avgy1),(int(r_x2),r_avgy2),(255,255,255),2)
 
        # Find the intersection of dominant lane with an imaginary horizontal line
        # in the middle of the image and at the bottom of the image.
+       if r_avgx1 != r_avgx2:
+           
+           slope_right = ((r_avgy1 - r_avgy2)*(1.0))/(r_avgx1 - r_avgx2)
+           y = h
+           r_x1f = (y - r_avgy1)/slope_right + r_avgx1
+           y = 2*h/3
+           r_x2f = (y - r_avgy1)/slope_right + r_avgx1
 
-       slope_right = ((r_avgy1 - r_avgy2)*(1.0))/(r_avgx1 - r_avgx2)
-       y = h
-       r_x1f = (y - r_avgy1)/slope_right + r_avgx1
-       y = h/2
-       r_x2f = (y - r_avgy1)/slope_right + r_avgx1
-
-       cv2.line(roi_image,(int(r_x1f),h),(int(r_x2f),h/2),(255,255,255),2)
-
-
-       print 'Right line ', right_line , ' Slope ' , slope_right
+           cv2.line(image,(int(r_x1f),h),(int(r_x2f),2*h/3),(255,255,255),2)
 
 
+           #print 'Right line ', right_line , ' Slope ' , slope_right
 
+
+    global error ,center_center_point
     #Computing the center of the lane
     if r_x2f and l_x2f:
 
-        up_center_point = (int((r_x2f + l_x2f)/2) , h/2)
+        up_center_point = (int((r_x2f + l_x2f)/2) , 2*h/3)
         down_center_point = (int((r_x1f + l_x1f)/2) , h)
         center_center_point = ((up_center_point[0] + down_center_point[0])/2 , (up_center_point[1] + down_center_point[1])/2)
-
-        print up_center_point,'    ',down_center_point
+        #center_center_point = movingAverage(center_center_point,center_center_point_1[0])
+        #print up_center_point,'    ',down_center_point
 
         #Computing the error
 
         img_center = ((h/2),(w/2))
-        cv2.line(roi_image,(img_center[1],h/2),(img_center[1],h),(255,255,255),2)
+        cv2.line(image,(img_center[1],h/2),(img_center[1],h),(255,255,255),2)
+        slope_normal = 1111
+        if up_center_point[0] != down_center_point[0]:
+            slope_center = ((up_center_point[1] - down_center_point[1])*(1.0))/(up_center_point[0] - down_center_point[0])
+            #print ' Slope center ' , slope_center
+            x_intersection_point = w/2
+            y_intersection_point = (x_intersection_point - down_center_point[0])*slope_center + down_center_point[1]
 
-        slope_center = ((up_center_point[1] - down_center_point[1])*(1.0))/(up_center_point[0] - down_center_point[0])
+            length_base = y_intersection_point - h/2
+            length_height = r_x2f - w/2
 
-        x_intersection_point = w/2
-        y_intersection_point = (x_intersection_point - down_center_point[0])*slope_center + down_center_point[1]
+            angle = math.tan(length_height/length_base)
+            #print 'angle',angle
+            #angle = math.degrees(angle)
 
-        length_base = y_intersection_point - h/2
-        length_height = r_x2f - w/2
+        error = center_center_point[0] - (w/2)
+        cv2.line(image,(up_center_point),(down_center_point),(255,255,255),2)
 
-        angle = tan(length_height/length_base)
+    else:
+        error = None
 
-        angle = degrees(angle)
+    if(error !=None):
+        #print 'error b4', error
+        a = 0.3
+        error = error*(a)+ prev_error*(1-a)
+        #print ' error  ',error,'  angle  ',angle
+        prev_error = error
 
-        error = up_center_point[0] - img_center[0]
-        cv2.line(roi_image,(up_center_point),(down_center_point),(255,255,255),2)
-
-##
-##    print time.time()-start
-##
-##    if(error !=None):
-##        #print error
-##        error = error*(a)+ prev_error*(a-1)
-##        prev_error = error
-##
-##        print time.time()-start
-##        return (error)
-
-
-    if (display == True):
-        cv2.imshow('Video', image)
-        cv2.imshow('Video left', left)
-        cv2.imshow('Video right', right)
+    if (display):
         cv2.imshow('roi', roi_image)
+        cv2.imshow('image', image)
+        cv2.imshow('imager', right)
+        cv2.imshow('imagel', left)
+    #print time.time()-start
+    #print error
+    return (error)
+
+
+
+
+def lane_processing(img , display = False):
+
+    
+    #birds_eye,_,_ = birdeye(img,display)
+    thresh = cv2.threshold(img ,150, 255, cv2.THRESH_BINARY)[1]    
+
+    # Start the lane detection process
+    lane_error = Lane_tracking(thresh, display)
+
+    return lane_error
 
 
 if __name__ == '__main__':
@@ -313,10 +348,11 @@ if __name__ == '__main__':
             # Get the input image
             frame = image_capture()
 
-            birds_eye,_,_ = birdeye(frame,False)
-
             # Start the lane detection process
-            lanes_image = Lane_tracking(birds_eye, display = True)
+            lane_error = lane_processing(frame,True)
+    
+
+          #  print lane_error
 
             #Display the detected lane on the frame
             #cv2.imshow('Input Image', blend)
