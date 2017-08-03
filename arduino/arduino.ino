@@ -33,9 +33,9 @@ float turn_away_delay = 1000;
 
 /* Encoder Matching PID Vairables */
 //PID gains for encoder matching
-float Kp=0.89;
-float Ki=0.0035;//0.0000001;
-float Kd=0.98;//1.45;//3.80;
+float Kp=0.19;
+float Ki=0.00;//35;//0.0000001;
+float Kd=0.18;//1.45;//3.80;
 
 // PID variables
 float previous_error=0;
@@ -59,7 +59,7 @@ bool is_color_shown = false;
 bool is_attached = false;
 bool serial_input_complete = false;
 
-int forward_speed = 135;
+int forward_speed = 100;
 
 
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
@@ -171,11 +171,11 @@ void PheenoMoveForward(int speed,String error) {
 
   //if (millis() - PIDMotorsTimeStart >= timeStep){
   float PIDTimeStep = (millis() - PIDMotorsTimeStart)/1000.0;//Time step for controller to work on (s).
-  float  a = 0.99;  
+  float  a = 0.29;  
   my_robot.encoderPositionUpdate(timeStep);
   int  error1 = error.toInt();
 
-  error1 = error1*(a)+previous_error*(a-1);
+  error1 = error1*(a)+previous_error*(1-a);
 
   
   
@@ -274,8 +274,7 @@ void SerialEvent() {
 
   }
   in_data="";
-  
-        my_robot.brakeAll();  
+  my_robot.brakeAll();  
   //Serial.println(in_data);
 }
 
@@ -296,102 +295,102 @@ void ParseData()
   
     my_robot.readIR();
    int distance = my_robot.CDistance;
-   Serial.println(distance);
+   //Serial.println(distance);
     if (distance > range_to_avoid)
     {
       
-      if (mess_from_serial == "GREEN") 
-        { 
-            Serial.println (" GREEN detected");
-           int turn_state = random(1,4);
-            if (turn_state == 1)
-            {
-               //Need to turn the Pheeno Left.
-                
-                Serial.println("turnleft");
-                delay(1000);
-                PheenoMoveForward(forward_speed,0);
-                delay(4600);
-                PheenoTurnLeft(120);
-                delay(1800);
-                Serial.println("turnleft done");
-                //delay(2000);            
-                my_robot.brakeAll();
-                delay(1000);
-                PheenoMoveForward(forward_speed,mess_error);
-                prev_signal=="GREEN";
-   
-            } 
-            if(turn_state == 2)
-            {
-                
-                Serial.println("turnRight");
-                delay(1000);
-                PheenoMoveForward(forward_speed,0);
-                delay(3600);
-                PheenoTurnRight(120);
-                delay(1800);
-                Serial.println("turnRight done");
-                //delay(2000);            
-                my_robot.brakeAll();
-                delay(1000);
-                PheenoMoveForward(forward_speed,mess_error);
-                prev_signal=="GREEN";
-            }
-            if(turn_state == 3)
-            {
-              // Need to turn the Pheeno Right.
-              Serial.println("LaneFollow");
-              PheenoMoveForward(forward_speed,mess_error);                 
-              prev_signal=="GREEN";
-                
-            }
-        }
-       else 
-      if (mess_from_serial == "RED")
-      {
-        Serial.println (" RED detected");
-        my_robot.brakeAll();   
-        prev_signal="RED"; 
-        Serial.println (prev_signal);
-         
-      }
-        else 
-      if (mess_from_serial == "REVERSE")
-      {
-          Serial.println("REVERSE No Signal Detected");
-         my_robot.reverseLR(80);
-         my_robot.reverseRL(80);
-         delay(500);
-      }
-      else
+//      if (mess_from_serial == "GREEN") 
+//        { 
+//            Serial.println (" GREEN detected");
+//           int turn_state = random(1,4);
+//            if (turn_state == 1)
+//            {
+//               //Need to turn the Pheeno Left.
+//                
+//                Serial.println("turnleft");
+//                delay(1000);
+//                PheenoMoveForward(forward_speed,0);
+//                delay(4600);
+//                PheenoTurnLeft(120);
+//                delay(1800);
+//                Serial.println("turnleft done");
+//                //delay(2000);            
+//                my_robot.brakeAll();
+//                delay(1000);
+//                PheenoMoveForward(forward_speed,mess_error);
+//                prev_signal=="GREEN";
+//   
+//            } 
+//            if(turn_state == 2)
+//            {
+//                
+//                Serial.println("turnRight");
+//                delay(1000);
+//                PheenoMoveForward(forward_speed,0);
+//                delay(3600);
+//                PheenoTurnRight(120);
+//                delay(1800);
+//                Serial.println("turnRight done");
+//                //delay(2000);            
+//                my_robot.brakeAll();
+//                delay(1000);
+//                PheenoMoveForward(forward_speed,mess_error);
+//                prev_signal=="GREEN";
+//            }
+//            if(turn_state == 3)
+//            {
+//              // Need to turn the Pheeno Right.
+//              Serial.println("LaneFollow");
+//              PheenoMoveForward(forward_speed,mess_error);                 
+//              prev_signal=="GREEN";
+//                
+//            }
+//        }
+//       else 
+//      if (mess_from_serial == "RED")
+//      {
+//        Serial.println (" RED detected");
+//        my_robot.brakeAll();   
+//        prev_signal="RED"; 
+//        Serial.println (prev_signal);
+//         
+//      }
+//        else 
+//      if (mess_from_serial == "REVERSE")
+//      {
+//          Serial.println("REVERSE No Signal Detected");
+//         my_robot.reverseLR(80);
+//         my_robot.reverseRL(80);
+//         delay(500);
+//      }
+//      else
       if(mess_from_serial != "PHEENO" && mess_error != "None")
       {
         Serial.println("nocolor detected");
         PheenoMoveForward(forward_speed,mess_error);
         
       }
-      else
-      if(mess_from_serial != "PHEENO" && mess_error =="None")
-      {
-        Serial.println("nothing detected");       
-        my_robot.brakeAll();
-        for(int i=0;i<NUMPIXELS;i++){
-
-            // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
-            pixels.setPixelColor(i, pixels.Color(0,20,0)); // Moderately bright green color.
-            pixels.show(); // This sends the updated pixel color to the hardware.
-            delay(1); // Delay for a period of time (in milliseconds).
-           }    
+//      else
+//      if(mess_from_serial != "PHEENO" && mess_error =="None")
+//      {
+//        Serial.println("nothing detected");       
+//        my_robot.brakeAll();
+//        for(int i=0;i<NUMPIXELS;i++){
+//
+//            // pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
+//            pixels.setPixelColor(i, pixels.Color(0,20,0)); // Moderately bright green color.
+//            pixels.show(); // This sends the updated pixel color to the hardware.
+//            delay(1); // Delay for a period of time (in milliseconds).
+//           }    
       }
     } 
     
-      else 
-      if (mess_from_serial == "PHEENO")
-      {
-         Serial.println("Pheeno detected");       
-         my_robot.brakeAll();
-      }
+//      else 
+//      if (mess_from_serial == "PHEENO")
+//      {
+//         Serial.println("Pheeno detected");       
+//         my_robot.brakeAll();
+//      }
 //    else 
 //    if(mess_from_serial == "PHEENO" && distance<30 && distance >22)
 //    {
@@ -401,25 +400,24 @@ void ParseData()
 //         my_robot.reverseRL(100);
 //         delay(100);
 //    }
-    else
-    if (my_robot.CDistance < 25)
-    {
-      distance = my_robot.CDistance;
-      Serial.println ("Too Close to wall");
-      Serial.println(distance);
-    //erial.println(my_robot.CDistance);
-    PheenoTurnLeft(100);
-    delay(2350);    
-    my_robot.forwardLR(150);
-    my_robot.forwardRL(150);
-    delay(1250);    
-    PheenoTurnLeft(100);
-    delay(2320);
-    my_robot.brakeAll();
-    //delay(1000);  
-    }
+//    else
+//    if (my_robot.CDistance < 25)
+//    {
+//      int distance = my_robot.CDistance;
+//      Serial.println ("Too Close to wall");
+//      Serial.println(distance);
+//    //erial.println(my_robot.CDistance);
+////    PheenoTurnLeft(100);
+////    delay(2350);    
+////    my_robot.forwardLR(150);
+////    my_robot.forwardRL(150);
+////    delay(1250);    
+////    PheenoTurnLeft(100);
+////    delay(2320);
+//    my_robot.brakeAll();
+//    //delay(1000);  
+//    }
    }
-  }
   else
   {
         Serial.println (" Nothing");
